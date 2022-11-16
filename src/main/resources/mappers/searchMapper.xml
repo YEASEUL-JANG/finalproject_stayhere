@@ -1,0 +1,345 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="search">
+
+<!-- 숙소검색(지도검색) -->
+	<select id="listMap" resultType="RoomsDTO">
+	 select * 
+	from (
+    select A.*, rownum as rn
+    from (
+	 select 
+	 a.room_idx,
+	 h_userid,
+	 room_name,
+	 room_price,
+	 contents,
+	 city,
+	 country,
+	 check_in,
+	 check_out,
+	 address1,
+	 address2,
+	 beds,
+	 baths,
+	 max_people,
+	 room_type,
+	 lat,
+	 lng,
+	 photo1,
+	 photo2,
+	 photo3,
+	 photo4,
+	 admin_confirm,
+	 (select nvl(round(avg(review_star)),0) from review where a.room_idx=room_idx) as review_star,
+	 (select count(*) from reservations where a.room_idx=room_idx ) as res_count,
+	 (select count(*) from review where a.room_idx=room_idx) as review_count,
+	 (select count(*) from wishlist where room_idx=a.room_idx and userid=#{userid}) as wishcheck,
+	 (select count(*) from reserved where re_date not between #{checkin_date} and #{checkout_date} and a.room_idx=room_idx)as re_date,
+	 (select distinct room_idx from reserved where a.room_idx=room_idx) as reserved_room
+	 from rooms a, room_photo b
+	 where a.room_idx=b.room_idx 
+	 and <include refid="search_option_where-1" />
+	 <include refid="search_option_order" /> )A
+	 ) where <include refid="search_option_where-2" />
+
+	</select>
+	
+<!-- 숙소갯수 count -->	
+	<select id="countrooms" resultType="int">
+	select count(*)
+	from (
+    select A.*, rownum as rn
+    from (
+	 select a.room_idx,h_userid,room_name,room_price,contents,city,country,check_in,check_out,
+	 address1,address2,beds,baths,max_people,room_type,lat,lng,photo1,photo2,photo3,photo4,admin_confirm,
+	 (select nvl(round(avg(review_star)),0) from review where a.room_idx=room_idx) as review_star,
+	 (select count(*) from review where a.room_idx=room_idx) as review_count,
+	 (select count(*) from reservations where a.room_idx=room_idx ) as res_count,
+	 (select count(*) from reserved where re_date not between #{checkin_date} and #{checkout_date} and a.room_idx=room_idx)as re_date,
+	 (select distinct room_idx from reserved where a.room_idx=room_idx) as reserved_room
+	 from rooms a, room_photo b
+	 where a.room_idx=b.room_idx 
+	 and <include refid="search_option_where-1" />)A
+	 ) where <include refid="search_option_where-2" />
+	</select>
+	
+<!--검색 주소리스트 -->	
+	<select id="address_list" resultType="RoomsDTO">
+	select lat,lng,room_name,room_price,photo1
+	from (
+    select A.*, rownum as rn
+    from (
+	 select a.room_idx,h_userid,room_name,room_price,contents,city,country,check_in,check_out,
+	 address1,address2,beds,baths,max_people,room_type,lat,lng,photo1,photo2,photo3,photo4,admin_confirm,
+	 (select nvl(round(avg(review_star)),0) from review where a.room_idx=room_idx) as review_star,
+	 (select count(*) from review where a.room_idx=room_idx) as review_count,
+	 (select count(*) from reservations where a.room_idx=room_idx ) as res_count,
+	 (select count(*) from reserved where re_date not between #{checkin_date} and #{checkout_date} and a.room_idx=room_idx)as re_date,
+	 (select distinct room_idx from reserved where a.room_idx=room_idx) as reserved_room
+	 from rooms a, room_photo b
+	 where a.room_idx=b.room_idx 
+	 and <include refid="search_option_where-1" /> )A
+	 ) where <include refid="search_option_where-2" />
+	</select>
+	
+	<!-- 검색어 리스트  -->
+	<select id="search_list" resultType="String">
+	 select distinct CONCAT(city,CONCAT(', ',country)) from rooms
+	</select>
+	
+	<!-- 기본검색 룸 갯수 -->
+	<select id="getRoomDefalutCount" resultType="int">
+		select count(*) from (
+			select A.* from ( select
+				r.room_idx,
+				r.check_in,
+				r.check_out,
+				(select count(*) from review where room_idx=r.room_idx)review_count,
+				(select nvl(avg(review_star),0) from review where room_idx=r.room_idx) review_star,
+        (select count(*) from reserved where re_date not between #{checkin_date} and #{checkout_date} and room_idx= r.room_idx) re_date,
+        (select distinct room_idx from reserved where room_idx=r.room_idx) reserved_room
+				from rooms r join	room_photo rp on r.room_idx = rp.room_idx
+				where <include refid="search_option_where-1" />) A
+		) where <include refid="search_option_where-2" />
+	</select>
+	
+	
+	<!-- 기본검색 리스트 불러오기 -->
+	<select id="getRoomDefalutList" resultType="RoomsDTO">
+		select * from (
+			select A.* , rownum as rn from ( select
+				r.room_idx,
+				r.room_name,
+				r.room_price,
+				substr(r.contents, 1, 200)contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.zipcode,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+				r.max_people,
+				r.add_people,
+				r.admin_confirm,
+				nvl(r.lat,0),
+				nvl(r.lng,0),
+				rp.photo1,
+				rp.photo2,
+				rp.photo3,
+				rp.photo4,
+				(select count(*) from review where room_idx=r.room_idx)review_count,
+				(select nvl(avg(review_star),0) from review where room_idx=r.room_idx) review_star,
+        (select count(*) from reserved where re_date not between #{checkin_date} and #{checkout_date} and room_idx= r.room_idx) re_date,
+        (select distinct room_idx from reserved where room_idx=r.room_idx) reserved_room
+				from rooms r join	room_photo rp on r.room_idx = rp.room_idx
+				where <include refid="search_option_where-1" />
+				<include refid="search_option_order" /> ) A
+		) where <include refid="search_option_where-2" />
+		
+	</select>
+	
+		
+	
+	<!-- 옵션검색 룸 갯수 -->
+	<select id="getRoomOptionCount" resultType="int">
+	select count(*) from (
+			select A.* , rownum as rn from ( select
+				r.room_idx,
+				r.room_name,
+				r.room_price,
+				substr(r.contents, 1, 200)contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.zipcode,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+				r.max_people,
+				r.add_people,
+				nvl(r.lat,0),
+				nvl(r.lng,0),
+				rp.photo1,
+				rp.photo2,
+				rp.photo3,
+				rp.photo4,
+				(select count(*) from review where room_idx=r.room_idx)review_count,
+				(select count(*) from reservations where room_idx=r.room_idx )res_count,
+				(select nvl(avg(review_star),0) from review where room_idx=r.room_idx) review_star,
+				(select count(*) from reserved where re_date not between #{checkin_date} and #{checkout_date} and room_idx= r.room_idx) re_date,
+        (select distinct room_idx from reserved where room_idx=r.room_idx) reserved_room
+				from rooms r join	room_photo rp on r.room_idx = rp.room_idx
+				where <include refid="search_option_where-1" />	) A
+		) where <include refid="search_option_where-2" />
+	</select>
+	
+	
+	
+	<!-- 옵션검색 리스트 불러오기 -->
+	<select id="getRoomOptionList" resultType="RoomsDTO">
+		select * from (
+			select A.* , rownum as rn from ( select
+				r.room_idx,
+				r.room_name,
+				r.room_price,
+				substr(r.contents, 1, 200)contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.zipcode,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+				r.max_people,
+				r.add_people,
+				nvl(r.lat,0),
+				nvl(r.lng,0),
+				rp.photo1,
+				rp.photo2,
+				rp.photo3,
+				rp.photo4,
+				(select count(*) from review where room_idx=r.room_idx)review_count,
+				(select count(*) from reservations where room_idx=r.room_idx )res_count,
+				(select nvl(avg(review_star),0) from review where room_idx=r.room_idx) review_star,
+				(select count(*) from reserved where re_date not between #{checkin_date} and #{checkout_date} and room_idx= r.room_idx) re_date,
+        (select distinct room_idx from reserved where room_idx=r.room_idx) reserved_room
+				from rooms r join	room_photo rp on r.room_idx = rp.room_idx
+				where <include refid="search_option_where-1" />	
+				<include refid="search_option_order" />) A
+		) where <include refid="search_option_where-2" />
+			and rn between #{start} and #{end}
+
+	</select>
+	
+	<!-- 룸 가격 최대값  -->
+	<select id="findRoomMaxPrice" resultType="int">
+		select nvl(max(room_price),0) from rooms
+	</select>
+	
+	<!-- 룸 가격 최소값  -->
+	<select id="findRoomMinPrice" resultType="int">
+		select nvl(min(room_price),0) from rooms
+	</select>
+	
+	
+	<!-- 검색어 리스트2 -->
+	<select id="searchList" resultType="map">
+		select distinct city, country from rooms
+		where (city like #{keyword} or room_name like #{keyword} or country like #{keyword} or address1 like #{keyword} or address2 like #{keyword})
+	</select>
+	
+	<!-- 
+			@ include 영역 
+			@ 공통된 영역은 아래와 같이 작성 
+			@ 이외 단일 옵션은 위쪽에 작성한다.
+	 -->
+
+	<!-- 검색 옵션 조건 내부 where 절 -->
+	<sql id="search_option_where-1">
+		admin_confirm = '승인'
+		and (city like #{cityname} or room_name like #{cityname} or country like
+		#{cityname} or address1 like #{cityname} or address2 like #{cityname})
+		and TO_CHAR(check_in, 'YYYYMMDD') <![CDATA[<=]]> #{checkin_date} 
+		and TO_CHAR(check_out, 'YYYYMMDD') >= #{checkout_date}
+
+		<choose>
+			<when test="bed != null">
+				and beds >= ${bed}
+			</when>
+			<otherwise>
+				and beds >= 0
+			</otherwise>
+		</choose>
+		
+		<choose>
+			<when test="baths != null">
+				and baths >= ${bath}
+			</when>
+			<otherwise>
+				and baths >= 0
+			</otherwise>
+		</choose>
+		
+		<choose>
+			<when test="max_people != null">
+				and max_people >= ${max_people}
+			</when>
+			<otherwise>
+				and max_people >= 0
+			</otherwise>
+		</choose>
+
+		<choose>
+			<when test="lower != null and higher != null">
+				and room_price between #{lower} and #{higher}
+			</when>
+			<otherwise>
+				and room_price between 0 and 1000000
+			</otherwise>
+		</choose>
+
+	</sql>
+	
+	
+	<!-- 검색 옵션 조건 외부 where 절 -->
+	<sql id="search_option_where-2">
+	 	(re_date !=0 or reserved_room is null)
+	 	<choose>
+	 		<when test="reviewStar != null">
+	 			and review_star<![CDATA[>=]]>#{reviewStar}
+	 		</when>
+	 		<otherwise>
+	 			and review_star<![CDATA[>=]]>0.0
+	 		</otherwise>
+	 	</choose>
+	</sql>
+	
+	
+	<!-- 검색 옵션 정렬 조건 order by  절 -->
+	<sql id="search_option_order">
+		<choose>
+					<when test="align == 'review_count'">
+						order by review_count desc, baths asc, beds asc, check_out desc
+					</when>
+					<when test="align == 'res_count'">
+						order by res_count desc, baths asc, beds asc, check_out desc
+					</when>
+					<when test="align == 'room_price'">
+						order by room_price desc, baths asc, beds asc, check_out desc 
+					</when>
+					<otherwise>
+						order by room_idx desc, baths asc, beds asc, check_out desc
+					</otherwise>
+				</choose>
+	</sql>
+	
+
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+

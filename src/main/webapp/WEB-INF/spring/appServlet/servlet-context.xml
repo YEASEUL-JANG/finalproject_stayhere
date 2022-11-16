@@ -1,0 +1,129 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans:beans xmlns="http://www.springframework.org/schema/mvc"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:beans="http://www.springframework.org/schema/beans"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:tx="http://www.springframework.org/schema/tx"
+	xmlns:websocket="http://www.springframework.org/schema/websocket"
+	xsi:schemaLocation="http://www.springframework.org/schema/websocket http://www.springframework.org/schema/websocket/spring-websocket-4.3.xsd
+		http://www.springframework.org/schema/mvc http://www.springframework.org/schema/mvc/spring-mvc.xsd
+		http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+		http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
+		http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-4.3.xsd
+		http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-4.3.xsd">
+
+	<!-- DispatcherServlet Context: defines this servlet's request-processing 
+		infrastructure -->
+
+	<!-- Enables the Spring MVC @Controller programming model -->
+	<annotation-driven />
+
+	<!-- Handles HTTP GET requests for /resources/** by efficiently serving 
+		up static resources in the ${webappRoot}/resources directory -->
+	<resources mapping="/resources/**" location="/resources/" />
+	<resources mapping="/include/**" location="/WEB-INF/views/include/" />
+	<resources mapping="/images/**" location="/resources/images" />
+	<resources mapping="/imgUpload/**" location="/resources/imgUpload/" />
+	<resources mapping="/ckeditor/**" location="/resources/ckeditor/" />
+
+	<!-- Resolves views selected for rendering by @Controllers to .jsp resources 
+		in the /WEB-INF/views directory -->
+	<beans:bean
+		class="org.springframework.web.servlet.view.InternalResourceViewResolver">
+		<beans:property name="prefix" value="/WEB-INF/views/" />
+		<beans:property name="suffix" value=".jsp" />
+	</beans:bean>
+	<!-- 스프링 빈을 태그로 등록하지 않고 자동으로 검색(auto scan) --> 
+	<context:component-scan base-package="com.example.stayhere" />
+	
+		<!-- 파일업로드에 필요한 bean -->
+	<beans:bean id="multipartResolver"
+	class="org.springframework.web.multipart.commons.CommonsMultipartResolver">
+		<!-- 파일업로드 최대 용량(byte) -->
+		<beans:property name="maxUploadSize" value="50000000" />
+		<beans:property name="defaultEncoding" value="utf-8" />
+		<!-- 첨부파일 큰경우 메모리대신 파일사용 -->
+		<beans:property name="uploadTempDir" value="file:/C:/upload" />
+		<!-- 메모리사용되는 최대사이즈 -->
+		<beans:property name="maxInMemorySize" value="10485760"/>
+	</beans:bean>
+	<!-- 파일업로드를 위한 디렉토리 설정 -->
+	<!-- String uploadPath=new String("c:/upload" > 배포 디렉토리로 변경); -->
+	<beans:bean id="uploadPath" class="java.lang.String">
+	   <beans:constructor-arg value="C:\work\.metadata\.plugins\org.eclipse.wst.server.core\tmp0\wtpwebapps\styahere-project\resources\imgUpload" />
+	</beans:bean>
+	
+	
+	<!-- 채팅관련 설정 시작 -->
+	<!-- 웹소켄 활성화 및 bean동록 -->
+	<websocket:handlers>
+		<websocket:mapping handler="MyTextWebSocketHandler" path="/chat"/>
+		<websocket:sockjs></websocket:sockjs>
+	</websocket:handlers>
+	
+	<beans:bean id="MyTextWebSocketHandler" class="com.example.stayhere.service.chat.MyTextWebSocketHandler"/> 
+	
+	<!-- 채팅 텍스트를 위한 업로드 패스 설정 -->
+	<beans:bean id="fileUploadPath" class="java.lang.String">
+	   <beans:constructor-arg value="C:\work\.metadata\.plugins\org.eclipse.wst.server.core\tmp0\wtpwebapps\styahere-project\resources\" />
+	</beans:bean>
+	
+	<!-- aop의 설정으로 Proxy 객체를 자동으로 생성 -->
+	<aop:aspectj-autoproxy></aop:aspectj-autoproxy>
+	
+	<!--인터셉터 빈 등록  -->
+	<beans:bean id="SessionInterceptor" class="com.example.stayhere.interceptor.SessionInterceptor" />
+	<beans:bean id="HostInterceptor" class="com.example.stayhere.interceptor.HostInterceptor" />
+	<beans:bean id="GuestInterceptor" class="com.example.stayhere.interceptor.GuestInterceptor" />
+	<!-- 인터셉터 호출을 위한 url mapping -->
+	<interceptors>
+	 
+	 <interceptor>
+	  <mapping path="/guest/login.do" />
+	  <mapping path="/host/login.do" />
+	  <mapping path="/guest/join.do" />
+	  <mapping path="/host/join.do" />
+	  <beans:ref bean="SessionInterceptor" />
+	 </interceptor> 
+	 
+	 <!-- 호스트 영역 -->
+	 <interceptor>
+	  <mapping path="/host/profile/{h_userid}" />
+	  <mapping path="/host/edit.do" />
+	  <mapping path="/host/delete.do" />
+	  <mapping path="/rooms/write.do" />
+	  <mapping path="/host/rooms_List.do" />
+	  <mapping path="/host/rooms_Confirm.do" />
+	  <mapping path="/host/rooms_Sales/{h_userid}" />
+	  <mapping path="/reservations/list/host" />
+	  <beans:ref bean="HostInterceptor" />
+	 </interceptor> 
+	 
+	 <!-- 게스트 영역 -->
+	 <interceptor>
+	  <mapping path="/guest/guest_view/{userid}" />
+	  <mapping path="/guest/edit.do" />
+	  <mapping path="/guest/delete.do" />
+	  <mapping path="/reservations/list/guest" />
+	  <mapping path="/reservations/reserve/{room_idx}" />
+	  <mapping path="/reservations/result.do" />
+	  <mapping path="/reviews/reviewUserList/{userid}" />
+	  <mapping path="/chat" />
+	  <mapping path="/chatlist" />
+	  <mapping path="/chatroom/{room_idx}/{h_userid}/{userid}" />
+	  <mapping path="/qna/scraplist" />
+	  <mapping path="/qna/insert.do" />
+	  <mapping path="/qna/qnawrite.do" />
+	  <mapping path="/wishlist/list.do" />
+	  <mapping path="/wishlist/insert.do" />
+	  <mapping path="/reviews/addcomment.do" />
+	  <beans:ref bean="GuestInterceptor" />
+	 </interceptor> 
+	 
+	 </interceptors>
+	 
+	 
+	 
+	 
+	</beans:beans>

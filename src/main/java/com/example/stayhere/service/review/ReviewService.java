@@ -1,0 +1,36 @@
+package com.example.stayhere.service.review;
+
+import java.util.Date;
+import java.util.List;
+
+import javax.servlet.http.HttpSession;
+
+import com.example.stayhere.model.review.dto.ReviewAccuseDTO;
+import com.example.stayhere.model.review.dto.ReviewDTO;
+import com.example.stayhere.model.review_comment.dto.ReCommentDTO;
+
+public interface ReviewService {
+	public void create(ReviewDTO dto) throws Exception; //리뷰작성
+	public void update(ReviewDTO dto) throws Exception; //수정
+	public void delete(int review_idx) throws Exception; //삭제
+	public void increaseViewcnt(int review_idx, HttpSession session) throws Exception; //조회수 증가 처리
+	public int countArticle() throws Exception;//레코드 갯수 계산
+	public List<ReviewDTO> listAll(int start, int end) throws Exception; //전체목록
+	public ReviewDTO detail(int review_idx);//리뷰상세보기
+	public List<ReviewDTO> reviewsByRoom(int room_idx);//숙소 별 리뷰 목록
+	public int countByRoom(int room_idx);//숙소 별 후기 개수
+	public double starByRoom(int room_idx);//숙소 별 별점 평균
+	//첨부파일 작업
+	public void deleteFile(String fileName); //첨부파일 삭제 
+	public List<String> getAttach(int review_idx); //첨부파일 정보 
+	public void addAttach(String fullName); //첨부파일저장
+	//리뷰댓글관련
+	public List<ReCommentDTO> comment(int review_idx);//댓글 리스트
+	public void addComment(int review_idx, String writer, String contents);//댓글달기
+	public void delComment(int review_idx, int comment_idx);//댓글삭제
+	//어드민 화면단에서 사용
+	public void insertaccuse(ReviewAccuseDTO radto);//리뷰 글 신고하기
+	public List<ReviewDTO> getreview(String userid);//게스트별 리뷰가져오기
+	public int countByUser(String userid);//유저별 리뷰 개수
+	public int getReviewId(int res_idx);//리뷰 아이디 가져오기
+}

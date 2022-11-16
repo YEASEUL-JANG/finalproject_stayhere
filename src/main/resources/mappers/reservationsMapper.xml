@@ -1,0 +1,323 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 다른 mapper와 중복되지 않도록 네임스페이스 기재 -->
+<mapper namespace="reservations">
+	
+	<!-- 예약 데이터 저장 -->
+	<insert id="insert">
+		insert into Reservations (res_idx,userid,name,phone,room_idx,h_userid,checkin_date,checkout_date,total_price,res_person,night,room_name)
+		values (Reservations_seq.nextval,#{userid},#{name},#{phone},#{room_idx},#{h_userid}
+		,#{checkin_date}
+		,#{checkout_date}
+		,#{total_price},#{res_person},#{night},#{room_name})
+	</insert>
+	
+	<!-- 예약 날짜 저장 -->
+	<insert id="insertReserved">
+		insert into Reserved (room_idx, re_date)
+		values(#{room_idx}, #{re_date})
+	</insert>
+	
+	<!-- 예약 정보 불러오기 -->
+	<select id="getReserveDetail" resultType="ReservationsDTO">
+		select * from Reservations where res_idx=#{res_idx}
+	</select>
+	
+	<!-- 게스트 예약내역 리스트  -->
+	<select id="guestResList" resultType="ReservationsDTO">              
+		select 
+		    re.res_idx,
+		    re.userid,
+		    re.name,
+		    re.phone,
+		    re.room_idx,
+		    re.h_userid,
+		    re.checkin_date,
+		    re.checkout_date,
+		    re.res_state,
+		    re.res_date,
+		    re.total_price,
+		    re.res_person,
+		    re.night,
+            re.review_check,
+		    ro.room_name,
+		    ro.room_price,
+		    ro.contents,
+		    ro.city,
+		    ro.country,
+		    ro.address1,
+		    ro.address2,
+		    ro.zipcode,
+		    ro.beds,
+		    ro.baths,
+		    ro.room_type,
+		    ro.lat,
+		    ro.lng,
+		    ro.max_people,
+		    ro.add_people,
+		    rp.photo1,
+		    rp.photo2,
+		    rp.photo3,
+		    rp.photo4
+		from Reservations re
+		join Rooms ro on re.room_idx=ro.room_idx
+		join Room_photo rp on ro.room_idx=rp.room_idx
+		where userid=#{userid}
+		order by re.checkin_date
+                    
+	</select>
+	
+	<!-- 게스트 : 예약요청 개수 -->
+	<select id="cntRequest" resultType="int">
+		select count(userid) 
+		from Reservations
+		where userid=#{userid} and res_state='예약요청'
+	</select>
+
+	<!-- 게스트 : 예약완료 개수 -->
+	<select id="cntApprove" resultType="int">
+		select count(userid) 
+		from Reservations
+		where userid=#{userid} and res_state='예약완료'
+	</select>
+	
+	<!-- 게스트 : 취소완료 개수 -->
+	<select id="cntCancel" resultType="int">
+		select count(userid) 
+		from Reservations
+		where userid=#{userid} and res_state='취소완료'
+	</select>
+	
+	<!-- 게스트 : 이용중 개수 -->
+	<select id="cntUse" resultType="int">
+		select count(userid) 
+		from Reservations
+		where userid=#{userid} and res_state='입실완료'
+	</select>
+
+	<!-- 게스트 : 이용완료 개수 -->
+	<select id="cntCheckout" resultType="int">
+		select count(userid) 
+		from Reservations
+		where userid=#{userid} and res_state='이용완료'
+	</select>
+	
+	<!-- 호스트 : 예약승인 개수 -->
+	<select id="h_cntRequest" resultType="int">
+		select count(h_userid) 
+		from Reservations
+		where h_userid=#{h_userid} and res_state='예약요청'
+	</select>
+	
+	<!-- 호스트 : 예약완료 개수 -->
+	<select id="h_cntApprove" resultType="int">
+		select count(h_userid) 
+		from Reservations
+		where h_userid=#{h_userid} and res_state='예약완료'
+	</select>
+	
+	<!-- 호스트 : 취소완료 개수 -->
+	<select id="h_cntCancel" resultType="int">
+		select count(h_userid) 
+		from Reservations
+		where h_userid=#{h_userid} and res_state='취소완료'
+	</select>
+	
+	<!-- 호스트 : 입실완료 개수 -->
+	<select id="h_cntUse" resultType="int">
+		select count(h_userid) 
+		from Reservations
+		where h_userid=#{h_userid} and res_state='입실완료'
+	</select>
+	
+	<!-- 호스트 : 이용완료 개수 -->
+	<select id="h_cntCheckout" resultType="int">
+		select count(h_userid) 
+		from Reservations
+		where h_userid=#{h_userid} and res_state='이용완료'
+	</select>
+	
+	<!-- 취소완료 상태변경 -->
+	<update id="refuseStatus">
+		update Reservations set res_state='취소완료'
+		where res_idx=#{res_idx}
+	</update>
+	
+	<!-- 취소 완료 시 중복날짜 삭제 -->
+	<delete id="reserveCancel">
+		delete from Reserved where room_idx=#{room_idx} and re_date between #{checkin_date} and #{checkout_date}
+	</delete>
+	
+	<!-- 예약 완료 상태변경 -->
+	<update id="approveStatus">
+		update Reservations set res_state='예약완료'
+		where res_idx=#{res_idx}
+	</update>
+	
+	<!-- 입실 완료 상태변경 -->
+	<update id="checkinStatus">
+		update Reservations set res_state='입실완료'
+		where res_idx=#{res_idx}
+	</update>
+	
+	<!-- 이용 완료 상태변경 -->
+	<update id="checkoutStatus">
+		update Reservations set res_state='이용완료'
+		where res_idx=#{res_idx}
+	</update>
+	
+	<!-- 호스트 예약내역 리스트  -->
+	<select id="hostResList" resultType="ReservationsDTO">
+		select 
+		    re.res_idx,
+		    re.userid,
+		    re.name,
+		    re.phone,
+		    re.room_idx,
+		    re.h_userid,
+		    re.checkin_date,
+		    re.checkout_date,
+		    re.res_state,
+		    re.res_date,
+		    re.total_price,
+		    re.res_person,
+		    re.night,
+		    re.review_check,
+		    ro.room_name,
+		    ro.room_price,
+		    ro.contents,
+		    ro.city,
+		    ro.country,
+		    ro.address1,
+		    ro.address2,
+		    ro.zipcode,
+		    ro.beds,
+		    ro.baths,
+		    ro.room_type,
+		    ro.lat,
+		    ro.lng,
+		    ro.max_people,
+		    ro.add_people,
+		    rp.photo1,
+		    rp.photo2,
+		    rp.photo3,
+		    rp.photo4
+		from Reservations re
+		join Rooms ro on re.room_idx=ro.room_idx
+		join Room_photo rp on ro.room_idx=rp.room_idx
+		where re.h_userid=#{h_userid} 
+		order by re.checkin_date
+	</select>
+	
+	<!-- ADMIN 매출 총집계 -->
+	<select id="totalmoney"
+		resultType="com.example.stayhere.model.reservations.dto.ReservationsDTO">
+		select TO_CHAR(res_date,'MM"월"') month, nvl(sum(total_price),0) monthlymoney
+		from reservations
+		where res_date between to_date('20221101','yyyyMMdd') and to_date('20231230','yyyyMMdd')
+		and res_state !='취소완료' 
+		group by TO_CHAR(res_date,'MM"월"')
+		order by month
+	</select>
+
+	<!--ADMIN 카테고리 매출집계  -->
+	<select id="catetotalmoney" resultType="com.example.stayhere.model.reservations.dto.ReservationsDTO">
+		select b.room_type, nvl(sum(a.total_price),0) as yearmoney
+		from reservations a
+		inner join rooms b
+		on a.room_idx=b.room_idx
+		where a.res_date between to_date('20221101','yyyyMMdd') and to_date('20231230','yyyyMMdd')
+		and a.res_state !='취소완료'
+		group by b.room_type
+	</select>
+
+	<!--룸예약내역  -->
+	<select id="roomreservation" resultType="com.example.stayhere.model.reservations.dto.ReservationsDTO">
+	 select 
+			    re.res_idx,
+			    re.userid,
+			    re.name,
+			    re.phone,
+			    re.room_idx,
+			    re.h_userid,
+			    re.checkin_date,
+			    re.checkout_date,
+			    re.res_state,
+			    re.res_date,
+			    re.total_price,
+			    re.res_person,
+			    re.night,
+			    ro.room_name,
+			    ro.room_price,
+			    ro.contents,
+			    ro.city,
+			    ro.country,
+			    ro.address1,
+			    ro.address2,
+			    ro.zipcode,
+			    ro.beds,
+			    ro.baths,
+			    ro.room_type,
+			    ro.lat,
+			    ro.lng,
+			    ro.max_people,
+			    ro.add_people,
+			    rp.photo1,
+			    rp.photo2,
+			    rp.photo3,
+			    rp.photo4
+			from Reservations re
+			join Rooms ro on re.room_idx=ro.room_idx
+			join Room_photo rp on ro.room_idx=rp.room_idx
+			where re.room_idx=#{room_idx} 
+			order by re.checkin_date
+	</select>
+	
+	<!-- 이번달 매출 -->
+	<select id="getThismonth" resultType="int">
+		 select nvl(sum(total_price),0) from reservations
+		where res_state !='취소완료' and TO_CHAR(to_date(res_date,'yy-MM-dd'),'MM')
+		=TO_CHAR(to_date(#{today},'yy-MM-dd'),'MM')
+	</select>
+	
+	<!-- 이번년도 매출 -->
+	<select id="getThisyear" resultType="int">
+		<!--  select nvl(sum(total_price),0) from reservations
+		where res_state !='취소완료' and TO_CHAR(to_date(res_date,'yy-MM-dd'),'yy')='22' -->
+		select nvl(sum(total_price),0) from reservations
+		where res_state !='취소완료' and checkin_date like '2022%'
+	</select>
+
+	<!-- 예약 가능한 날짜인지 체크 -->
+	<select id="resdateCheck" resultType="int">
+		select count(*) 
+		from reserved 
+		where re_date between #{checkin_date} and #{checkout_date}-1 and room_idx=#{room_idx}
+	</select>
+	
+	<!-- 예약메일 보내기용 -->
+	<select id="mailReserve" resultType="ReservationsDTO">
+		select * 
+		from Reservations 
+		where room_idx=#{room_idx} 
+		and checkin_date=#{checkin_date}
+		and checkout_date=#{checkout_date}
+	</select>
+
+	<!-- 예약 별 리뷰 유무 확인용 -->
+	<update id="reviewCheck">
+		UPDATE Reservations SET review_check = 'y' where res_idx=#{res_idx}
+	</update>
+	
+	<!-- 이용완료 제외한 예약 총 건수 -->
+	<select id="countAllRes" resultType="int">
+		select count(*) 
+		from Reservations 
+		where userid=#{userid} and res_state!='이용완료'
+	</select>
+
+</mapper>
+

@@ -1,0 +1,364 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!-- 다른 mapper와 중복되지 않도록 네임스페이스 기재 -->
+<mapper namespace="rooms">
+	<!-- 룸정보 불러오기 -->
+	<select id="detail_rooms" resultType="RoomsDTO">
+    select *
+		from (
+			select 
+				r.room_idx, 
+				r.h_userid, 
+				r.room_name, 
+				r.room_price,
+				r.contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.zipcode,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+				r.lat,
+				r.lng,
+				r.max_people,
+				r.add_people,
+				rp.photo1,
+				rp.photo2,
+				rp.photo3,
+				rp.photo4
+			from rooms r join room_photo rp 
+			on r.room_idx = rp.room_idx
+		) where room_idx=#{room_idx}
+	</select>
+	
+	<!-- 메인페이지 룸정보 불러오기 -->
+	<select id="getRoomAllList" resultType="RoomsDTO">
+		select * from (
+			select A.* , rownum as rn from ( select
+				r.room_idx,
+				r.room_name,
+				r.room_price,
+				substr(r.contents, 1, 200)contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.zipcode,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+				r.max_people,
+				r.add_people,
+				r.admin_confirm,
+				nvl(r.lat,0),
+				nvl(r.lng,0),
+				rp.photo1,
+				rp.photo2,
+				rp.photo3,
+				rp.photo4,
+				(select count(*) from review where room_idx=r.room_idx)review_count,
+				(select nvl(avg(review_star),0) from review where room_idx=r.room_idx) review_star,
+        (select count(*) from reserved where re_date not between #{today} and #{tomorrow} and room_idx= r.room_idx) re_date,
+        (select distinct room_idx from reserved where room_idx=r.room_idx) reserved_room
+				from rooms r join	room_photo rp on r.room_idx = rp.room_idx
+				where (to_char(check_in, 'yyyyMMdd') <![CDATA[<=]]> #{today} 
+				or to_char(check_in, 'yyyyMMdd') <![CDATA[>=]]> #{today})
+				and to_char(check_out, 'yyyyMMdd') >= #{tomorrow} and admin_confirm='승인'
+				order by review_star desc, check_out asc) A
+		) where rn between #{start} and #{end} and (re_date !=0 or reserved_room is null)
+	</select>
+
+	<!-- 메인페이지 룸 갯수 불러오기 -->
+	<select id="getRoomAllCount" resultType="int">
+		select count(*) from (
+			select A.* , rownum as rn from ( select
+				(select count(*) from review where room_idx=r.room_idx)review_count,
+				(select nvl(avg(review_star),0) from review where room_idx=r.room_idx) review_star,
+        (select count(*) from reserved where re_date not between #{today} and #{tomorrow} and room_idx= r.room_idx) re_date,
+        (select distinct room_idx from reserved where room_idx=r.room_idx) reserved_room
+				from rooms r join	room_photo rp on r.room_idx = rp.room_idx
+				where (to_char(check_in, 'yyyyMMdd') <![CDATA[<=]]> #{today} 
+				or to_char(check_in, 'yyyyMMdd') <![CDATA[>=]]> #{today})
+				and to_char(check_out, 'yyyyMMdd') >= #{tomorrow} and admin_confirm='승인') A
+		) where (re_date !=0 or reserved_room is null)
+	</select>
+	
+	<!-- 룸등록 -->
+	<insert id="insert">
+		insert all into Rooms(
+						room_idx,
+						h_userid,
+						room_name,
+						room_price,
+						contents,
+						city,
+						country,
+						address1,
+						address2,
+						zipcode,
+						beds,
+						baths,
+						room_type,
+						check_in,
+						check_out,
+						lat,
+						lng,
+						max_people,
+						add_people
+						) 
+						values(
+						Rooms_seq.nextval,
+						#{h_userid},
+						#{room_name},
+						#{room_price},
+						#{contents},
+						#{city},
+						#{country},
+						#{address1},
+						#{address2},
+						#{zipcode},
+						#{beds},
+						#{baths},
+						#{room_type},
+						#{check_in},
+						#{check_out},
+						#{lat},
+						#{lng},
+						#{max_people},
+						#{add_people}
+						) into Room_photo(
+						p_idx,
+						room_idx,
+						photo1,
+						photo2,
+						photo3,
+						photo4
+						) values(
+						Room_photo_seq.nextval,
+						Rooms_seq.nextval,
+						#{photo1},
+						#{photo2},
+						#{photo3},
+						#{photo4}
+						) select * from dual
+
+	</insert>
+	
+	<!-- 룸 수정시 photo와 정보 같이 불러오기 -->
+	<select id="getRoomInfo" resultType="RoomsDTO">
+	select * FROM rooms, room_photo
+	where rooms.room_idx = room_photo.room_idx
+	and rooms.room_idx = #{room_idx}
+	</select>
+	
+	<!-- 삭제요청 업데이트 -->
+	<update id="deleteConfirm">
+	update rooms
+	set admin_confirm='삭제요청'
+	where room_idx=#{room_idx}
+	</update>
+	
+	<!-- 룸 업데이트 -->
+	<update id="updateRoom">
+	update rooms set 
+	room_name=#{room_name},
+	contents=#{contents},
+	room_type=#{room_type},
+	address1=#{address1},
+	address2=#{address2},
+	room_price=#{room_price},
+	add_people=#{add_people},
+	baths=#{baths},
+	beds=#{beds},
+	max_people=#{max_people},
+	check_in=#{check_in},
+	check_out=#{check_out}
+	where room_idx=#{room_idx}
+	</update>
+	
+	<!-- 룸 사진 업데이트 두개 조인해서 같은값으로 할 수 있으나.. 다른값으로 업데이트를 못해서 만듬...  -->
+	<update id="updateRoomphoto">
+	update room_photo set
+	photo1=#{photo1},
+	photo2=#{photo2},
+	photo3=#{photo3},
+	photo4=#{photo4}
+	where room_idx=#{room_idx}
+	</update>
+	
+	<select id="countAllRoom" resultType="int">
+	select count(*) from rooms
+	</select>
+	
+	<!-- 모든숙소 관리(어드민) -->
+	<select id="allroom_admin" resultType="RoomsDTO">
+	 select *
+			from (
+				select A.* , rownum as rn
+				from ( select
+				r.room_idx,
+				r.h_userid,
+				r.room_name,
+				r.room_price,
+				r.contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.zipcode,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+				r.lat,
+				r.lng,
+				r.admin_confirm,
+				rp.photo1,
+				rp.photo2,
+				rp.photo3,
+				rp.photo4,
+                (select nvl(sum(total_price),0) from reservations where r.room_idx=room_idx) total_price,
+				(select count(*) from reservations where room_idx=r.room_idx) res_count,
+				(select count(*) from review where room_idx=r.room_idx) review_count,
+				(select nvl(round(avg(review_star)),0) from review where room_idx=r.room_idx) review_star
+			from rooms r join room_photo rp on r.room_idx = rp.room_idx
+			order by ${select} desc) A
+		) where rn between #{start} and #{end}
+	</select>
+	
+	<!--숙소상태변경  -->
+	<update id="changestate" >
+	 update rooms set admin_confirm = #{state}
+	 where room_idx= #{room_idx}
+	</update>
+	
+	<!-- 승인숙소 불러오기 -->
+	<select id="getconfirm" resultType="RoomsDTO">
+	  select
+				r.room_idx,
+				r.h_userid,
+				r.room_name,
+				r.room_price,
+				r.contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+                r.admin_confirm,
+				rp.photo1
+				from rooms r join room_photo rp on r.room_idx = rp.room_idx
+				where r.admin_confirm='승인'
+			order by room_idx desc
+	</select>
+	<!-- 승인대기숙소 불러오기 -->
+	<select id="getdelay" resultType="RoomsDTO">
+	  select
+				r.room_idx,
+				r.h_userid,
+				r.room_name,
+				r.room_price,
+				r.contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+                r.admin_confirm,
+				rp.photo1,
+                h.h_name,
+                h.h_profile_img,
+                h.h_email,
+                h.h_join_date,
+                h.h_phone
+			from rooms r
+            join room_photo rp
+            on r.room_idx = rp.room_idx
+            join host h
+            on r.h_userid=h.h_userid
+            where r.admin_confirm = '승인대기'
+			order by room_idx desc
+	</select>
+	<!-- 승인거절숙소 불러오기 -->
+	<select id="getreject" resultType="RoomsDTO">
+	  select
+				r.room_idx,
+				r.h_userid,
+				r.room_name,
+				r.room_price,
+				r.contents,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+                r.admin_confirm,
+				rp.photo1
+				from rooms r join room_photo rp on r.room_idx = rp.room_idx
+				where r.admin_confirm='승인거절'
+			order by room_idx desc
+	</select>
+	<!--인기숙소 불러오기  -->
+	<select id="getpopular" resultType="RoomsDTO">
+	 select *
+			from (
+				select A.* , rownum as rn
+				from ( select
+				r.room_idx,
+				r.h_userid,
+				r.room_name,
+				r.room_price,
+				r.city,
+				r.country,
+				r.address1,
+				r.address2,
+				r.check_in,
+				r.check_out,
+				r.beds,
+				r.baths,
+				r.room_type,
+				r.admin_confirm,
+				rp.photo1,
+                (select nvl(sum(total_price),0) from reservations where r.room_idx=room_idx and 
+                TO_CHAR(to_date(res_date,'yy-MM-dd'),'MONTH')=TO_CHAR(to_date(#{today},'yy-MM-dd'),'MONTH')
+                ) total_price,
+				(select count(*) from reservations where room_idx=r.room_idx) res_count,
+				(select count(*) from review where room_idx=r.room_idx) review_count,
+				(select nvl(round(avg(review_star)),0) from review where room_idx=r.room_idx) review_star
+			from rooms r join room_photo rp on r.room_idx = rp.room_idx
+			where admin_confirm = '승인' 
+			order by total_price desc) A
+		) where rn between 1 and 10
+	</select>
+	
+	<!-- 해당숙소의 예약된 날짜 목록 불러오기  -->
+	<select id="matchDetail" resultType="String">
+		select re_date from reserved where room_idx=#{room_idx}
+	</select>
+	
+	<select id="getRoomallCount" resultType="int">
+	select count(*) from rooms
+	</select>
+	
+</mapper>

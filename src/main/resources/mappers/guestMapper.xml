@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper
+PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!-- 다른 mapper와 중복되지 않도록 네임스페이스 기재 -->
+<mapper namespace="guest">
+	<select id="list_guest" resultType="GuestDTO">
+		select * from guest 
+		order by name 
+	</select>
+	
+	<insert id="insert_guest" >
+		insert into guest (userid, name, passwd, email, phone) 
+		values (#{userid}, #{name}, #{passwd}, #{email}, #{phone})
+	</insert>
+	
+	<select id="loginCheck" resultType="String">
+		select name from guest 
+		where userid=#{userid} 
+		and passwd=#{passwd} 
+	</select>
+	
+	<!-- db비밀번호 조회 -->
+	<select id="findByPasswd" resultType="string">
+		select passwd from guest 
+		where userid=#{userid}
+	</select>
+	
+	<select id="view_guest" resultType="GuestDTO">
+		select * from guest 
+		where userid=#{userid}
+	</select>
+	
+	<update id="update_guest">
+		update guest 
+		set passwd=#{passwd}, name=#{name}, email=#{email}, phone=#{phone}, profile_img=#{profile_img} 
+		where userid=#{userid} 
+	</update>
+	
+	<select id="checkPw" resultType="int">
+		select count(*) from guest 
+		where userid=#{userid} 
+		<!--  and passwd=#{passwd} --> 
+	</select>
+	
+	<select id="idCheck" resultType="int">
+		select count(*) from guest 
+		where userid=#{userid} 
+	</select>
+	
+	<select id="login_lookup" parameterType="GuestDTO" resultType="int">
+		select count(userid) from guest 
+		where userid=#{userid} 
+	</select>
+	
+	<!-- 비밀번호 변경 -->
+	<update id="updatePw" parameterType="GuestDTO">
+		update guest 
+		set passwd = #{passwd} 
+		where userid = #{userid}
+	</update>
+	
+	<select id="emailCheck" resultType="int">
+		select count(*) from guest 
+		where email=#{email} 
+	</select>
+	
+	<select id="loginOkNick" resultType="GuestDTO" parameterType="GuestDTO">
+		select userid, name, profile_img 
+		from guest 
+		where userid like #{userid}
+	</select>
+	
+	<select id="memberOne" resultType="GuestDTO">
+		select * from guest 
+		where email=#{email} 
+	</select>	
+	<select id="findId" resultType="String">
+		select userid from guest
+		where email=#{email}
+	</select>
+	
+	<!-- admin 전체 회원목록 출력 -->
+	<select id="getguest" resultType="GuestDTO">
+	select *
+			from (
+			    select rownum as rn, A.*
+			    from (
+	select 
+	a.userid, 
+	a.name,
+	a.email, 
+	a.phone,
+	a.profile_img,
+	a.join_date,
+	a.blacklist,
+	nvl(sum(b.total_price),0) total_price,
+	(select count(*) from review where a.userid=userid) as review_count,
+	(select count(*) from review_accuse where a.userid=writer) as accuse_count
+	from guest a
+	left join reservations b
+	on a.userid=b.userid
+	group by a.userid, a.name, a.email, a.phone,a.profile_img,a.join_date,a.blacklist,a.join_date
+	order by a.userid desc) A    
+			) where rn between #{start} and #{end} 
+   </select>
+	
+	<select id="guestcount" resultType="int">
+	select count(*) from guest
+	</select>
+	
+	<update id="goblack">
+	 update guest set blacklist = 'y'
+	 where userid =#{userid}
+	</update>
+	
+	<update id="gonormal">
+	 update guest set blacklist = 'n'
+	 where userid =#{userid}
+	</update>
+	
+	<select id="getblackguest" resultType="GuestDTO">
+	 select *
+			from (
+			    select rownum as rn, A.*
+			    from (
+	select 
+	a.userid, 
+	a.name,
+	a.email, 
+	a.phone,
+	a.profile_img,
+	a.join_date,
+	a.blacklist,
+	nvl(sum(b.total_price),0) total_price,
+	(select count(*) from review where a.userid=userid) as review_count,
+	(select count(*) from review_accuse where a.userid=writer) as accuse_count
+	from guest a
+	left join reservations b
+	on a.userid=b.userid
+	group by a.userid, a.name, a.email, a.phone,a.profile_img,a.join_date,a.blacklist,a.join_date
+	having a.blacklist = 'y'
+	order by a.userid desc) A    
+			)  where rn between #{start} and #{end}
+	
+	</select>
+	
+	<select id="blackguestcount" resultType="int">
+	select count(*) from guest
+	where blacklist='y'
+	</select>
+	
+	<!--이번달 가입 회원수  -->
+	<select id="getmonthguest" resultType="int">
+	select count(*) from guest
+	where TO_CHAR(to_date(join_date,'yy-MM-dd'),'MONTH')
+	=TO_CHAR(to_date(#{today},'yy-MM-dd'),'MONTH')
+	</select>
+	<delete id="delete_guest">
+		delete from guest 
+		where userid=#{userid} 
+	</delete>
+</mapper>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
